@@ -21,6 +21,7 @@
 /build
 
 # misc
+desktop.ini
 .DS_Store
 *.pem
 
@@ -39,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# seed scripts (contienen logica de creacion de usuarios)
+/scripts/seed-*.mjs
