@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, matchesAdminSede } from "@/lib/auth-context"
+import { filterBySede } from "@/lib/sede"
+import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
 import { collection, getDocs, query, orderBy, doc, updateDoc, Timestamp, where } from "firebase/firestore"
 import { Reserva, Cancha } from "@/lib/types"
@@ -33,7 +35,7 @@ const ESTADO_CONFIG = {
 
 export default function PeticionesPage() {
   const router = useRouter()
-  const { usuario, loading: authLoading } = useAuth()
+  const { usuario, loading: authLoading, adminSede, isStaff } = useAuth()
 
   const [reservas, setReservas]         = useState<Reserva[]>([])
   const [loading, setLoading]           = useState(true)
@@ -53,14 +55,14 @@ export default function PeticionesPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!usuario) { router.replace("/login"); return }
-      if (usuario.rol === "estudiante") { router.replace("/"); return }
+      if (!isStaff) { router.replace("/"); return }
     }
-  }, [authLoading, usuario, router])
+  }, [authLoading, usuario, isStaff, router])
 
   useEffect(() => {
-    if (!usuario || usuario.rol === "estudiante") return
+    if (!usuario || !isStaff) return
     cargar()
-  }, [usuario])
+  }, [usuario, isStaff, adminSede])
 
   async function cargar() {
     setLoading(true)
@@ -68,11 +70,13 @@ export default function PeticionesPage() {
     try {
       const q = query(collection(db, "reservas"), orderBy("createdAt", "desc"))
       const snap = await getDocs(q)
-      setReservas(snap.docs.map(d => ({
+      const all = snap.docs.map(d => ({
         id: d.id, ...d.data(),
+        sede: d.data().sede ?? "melendez",
         createdAt: d.data().createdAt?.toDate?.() ?? new Date(),
         updatedAt: d.data().updatedAt?.toDate?.() ?? new Date(),
-      }) as Reserva))
+      }) as Reserva)
+      setReservas(filterBySede(all, adminSede))
 
       // Cargar escenarios para saber cuántas unidades tiene cada uno
       const eq = query(collection(db, "escenarios"), orderBy("nombre"))
@@ -142,7 +146,8 @@ export default function PeticionesPage() {
   const reservasFiltradas = reservas.filter(r => {
     const matchSearch =
       r.usuarioNombre.toLowerCase().includes(search.toLowerCase()) ||
-      (r.usuarioCarnet ?? "").includes(search) ||
+      (r.solicitanteNumeroDocumento ?? "").includes(search) ||
+      (r.codigoEstudiantil ?? "").includes(search) ||
       r.canchaNombre.toLowerCase().includes(search.toLowerCase())
     return matchSearch && (filtroEstado === "all" || r.estado === filtroEstado)
   })
@@ -164,14 +169,18 @@ export default function PeticionesPage() {
         <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
 
           {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-primary">Peticiones</h1>
-              <p className="text-sm text-muted-foreground">Solicitudes de reserva de escenarios</p>
+              <p className="text-sm text-muted-foreground">Solicitudes de préstamo de escenarios</p>
             </div>
-            {pendientes > 0 && (
-              <Badge className="bg-warning text-warning-foreground">{pendientes} pendiente{pendientes !== 1 ? "s" : ""}</Badge>
-            )}
+            <div className="flex items-center gap-3 flex-wrap">
+              <AdminSedeBadge />
+              <AdminSedeSelector />
+              {pendientes > 0 && (
+                <Badge className="bg-warning text-warning-foreground">{pendientes} pendiente{pendientes !== 1 ? "s" : ""}</Badge>
+              )}
+            </div>
           </div>
 
           {/* Filtros */}
@@ -221,7 +230,7 @@ export default function PeticionesPage() {
                           </div>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="h-3 w-3" />{r.usuarioNombre}</span>
-                            <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{r.usuarioCarnet ?? "—"}</span>
+                            <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{r.solicitanteNumeroDocumento ?? "—"}</span>
                             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fecha}</span>
                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{r.horaInicio}–{r.horaFin}</span>
                             {r.unidadAsignada && (

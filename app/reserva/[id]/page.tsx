@@ -217,7 +217,7 @@ export default function ReservaDetallePage({ params }: { params: Promise<{ id: s
                     <Hash className="h-5 w-5 text-primary" />
                     <div>
                       <p className="text-sm text-muted-foreground">Codigo de Estudiante</p>
-                      <p className="font-medium">{reserva.codigoEstudiante}</p>
+                      <p className="font-medium">{reserva.codigoEstudiantil ?? reserva.solicitanteNumeroDocumento}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">

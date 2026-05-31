@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { obtenerTodasReservas } from "@/lib/reservas-service"
 import { Reserva } from "@/lib/types"
-import { Sidebar } from "@/components/sidebar"
+import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
@@ -13,21 +13,21 @@ import { Calendar, CheckCircle, XCircle, Clock, BarChart3, Trophy } from "lucide
 
 export default function EstadisticasPage() {
   const router = useRouter()
-  const { usuario, loading: authLoading } = useAuth()
+  const { usuario, loading: authLoading, adminSede } = useAuth()
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading) {
       if (!usuario) { router.replace("/login"); return }
-      if (usuario.rol === "estudiante") { router.replace("/"); return }
+      if (usuario.rol === "solicitante") { router.replace("/"); return }
     }
   }, [authLoading, usuario, router])
 
   useEffect(() => {
-    if (!usuario || usuario.rol === "estudiante") return
-    obtenerTodasReservas().then(setReservas).finally(() => setLoading(false))
-  }, [usuario])
+    if (!usuario || usuario.rol === "solicitante") return
+    obtenerTodasReservas(adminSede).then(setReservas).finally(() => setLoading(false))
+  }, [usuario, adminSede])
 
   if (authLoading || loading) {
     return <div className="flex min-h-screen items-center justify-center"><Spinner size="lg" /></div>
@@ -68,12 +68,17 @@ export default function EstadisticasPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-background pl-20">
-      <Sidebar />
+    <div className="min-h-screen bg-background">
       <main className="container px-4 py-8 md:px-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-primary">Estadísticas</h1>
-          <p className="mt-1 text-muted-foreground">Resumen de préstamos y reservas de escenarios</p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-primary">Estadísticas</h1>
+            <p className="mt-1 text-muted-foreground">Resumen de préstamos y reservas de escenarios</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <AdminSedeBadge />
+            <AdminSedeSelector />
+          </div>
         </div>
 
         {/* KPIs */}

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { filterBySede } from "@/lib/sede"
+import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
 import { collection, getDocs, query, orderBy } from "firebase/firestore"
 import { Reserva } from "@/lib/types"
@@ -26,7 +28,7 @@ const ESTADO_COLOR: Record<string, string> = {
 
 export default function CalendarioPage() {
   const router = useRouter()
-  const { usuario, loading: authLoading } = useAuth()
+  const { usuario, loading: authLoading, adminSede, isStaff } = useAuth()
   const [reservas, setReservas]     = useState<Reserva[]>([])
   const [loading, setLoading]       = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -35,27 +37,29 @@ export default function CalendarioPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!usuario) { router.replace("/login"); return }
-      if (usuario.rol === "estudiante") { router.replace("/mis-reservas"); return }
+      if (!isStaff) { router.replace("/mis-reservas"); return }
     }
-  }, [authLoading, usuario, router])
+  }, [authLoading, usuario, isStaff, router])
 
   useEffect(() => {
-    if (!usuario || usuario.rol === "estudiante") return
+    if (!usuario || !isStaff) return
     async function cargar() {
       if (!isFirebaseConfigured || !db) { setLoading(false); return }
       try {
         const q = query(collection(db, "reservas"), orderBy("fecha"))
         const snap = await getDocs(q)
-        setReservas(snap.docs.map(d => ({
+        const all = snap.docs.map(d => ({
           id: d.id, ...d.data(),
+          sede: d.data().sede ?? "melendez",
           createdAt: d.data().createdAt?.toDate?.() ?? new Date(),
           updatedAt: d.data().updatedAt?.toDate?.() ?? new Date(),
-        }) as Reserva))
+        }) as Reserva)
+        setReservas(filterBySede(all, adminSede))
       } catch { /* sin datos */ }
       finally { setLoading(false) }
     }
     cargar()
-  }, [usuario])
+  }, [usuario, isStaff, adminSede])
 
   if (authLoading || loading) {
     return <div className="flex min-h-screen items-center justify-center"><Spinner size="lg" /></div>
@@ -81,11 +85,13 @@ export default function CalendarioPage() {
   return (
     <div className="container px-4 py-6 md:px-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-primary">
           {format(currentDate, "MMMM yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase())}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <AdminSedeBadge />
+          <AdminSedeSelector />
           <Button variant="outline" size="sm" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>

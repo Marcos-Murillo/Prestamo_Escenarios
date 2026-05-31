@@ -4,48 +4,57 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { searchGymUser, getGymCduRegistrationUrl } from "@/lib/gym-user-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
-import { Eye, EyeOff, Trophy } from "lucide-react"
+import { ExternalLink, Search, Trophy } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, usuario, loading: authLoading } = useAuth()
+  const { loginGym, usuario, loading: authLoading, isStaff } = useAuth()
 
-  const [identifier, setIdentifier] = useState("")
-  const [password, setPassword]     = useState("")
-  const [showPass, setShowPass]     = useState(false)
-  const [loading, setLoading]       = useState(false)
+  const [termino, setTermino] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [notFound, setNotFound] = useState(false)
+
+  const gymUrl = getGymCduRegistrationUrl()
 
   useEffect(() => {
     if (!authLoading && usuario) {
-      if (usuario.rol === "superadmin") router.replace("/superadmin")
-      else if (usuario.rol === "admin") router.replace("/admin")
+      if (isStaff) router.replace("/admin")
       else router.replace("/mis-reservas")
     }
-  }, [authLoading, usuario, router])
+  }, [authLoading, usuario, isStaff, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!identifier || !password) {
-      toast.error("Completa todos los campos")
+    const t = termino.trim()
+    if (t.length < 3) {
+      toast.error("Ingresa tu cédula o código estudiantil (mínimo 3 caracteres)")
       return
     }
+
     setLoading(true)
+    setNotFound(false)
     try {
-      await signIn(identifier, password)
-      toast.success("Sesión iniciada")
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : ""
-      if (msg.includes("invalid-credential") || msg.includes("wrong-password") || msg.includes("user-not-found")) {
-        toast.error("Usuario o contraseña incorrectos")
-      } else {
-        toast.error("Error al iniciar sesión")
+      const { found, user, error } = await searchGymUser(t)
+      if (error) {
+        toast.error(error)
+        return
       }
+      if (!found || !user) {
+        setNotFound(true)
+        return
+      }
+      loginGym(user)
+      toast.success(`Bienvenido, ${user.nombres}`)
+      router.replace("/mis-reservas")
+    } catch {
+      toast.error("Error al verificar tu identidad")
     } finally {
       setLoading(false)
     }
@@ -61,82 +70,70 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      {/* Banda superior de color */}
       <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-secondary to-accent" />
 
       <Card className="w-full max-w-md border-border shadow-xl">
-        {/* Header con fondo primary */}
         <CardHeader className="rounded-t-lg bg-primary px-8 py-8 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/15">
             <Trophy className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Reservas Escenarios</h1>
-          <p className="mt-1 text-sm text-white/70">Sistema universitario de canchas deportivas</p>
+          <h1 className="text-xl font-bold text-white leading-snug">
+            Solicita el préstamo de un escenario deportivo de la Universidad del Valle
+          </h1>
         </CardHeader>
 
         <CardContent className="px-8 py-8">
-          <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
-            Iniciar Sesión
-          </h2>
+          <p className="mb-6 text-center text-sm text-muted-foreground">
+            Ingresa tu cédula o código estudiantil. Debes estar registrado en Gym Control CDU.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="identifier" className="text-sm font-medium">
-                Carnet de estudiante
-              </Label>
+              <Label htmlFor="termino">Cédula o código estudiantil</Label>
               <Input
-                id="identifier"
+                id="termino"
                 type="text"
-                placeholder="Ej: 1007260358"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                inputMode="numeric"
+                placeholder="Ej: 1007260358 o 202625413"
+                value={termino}
+                onChange={(e) => {
+                  setTermino(e.target.value)
+                  setNotFound(false)
+                }}
                 disabled={loading}
-                autoComplete="username"
+                autoComplete="off"
                 className="h-11"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Contraseña
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPass ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  autoComplete="current-password"
-                  className="h-11 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                  aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
             <Button
               type="submit"
-              className="h-11 w-full bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
+              className="h-11 w-full bg-accent text-accent-foreground hover:bg-accent/90 font-semibold gap-2"
               disabled={loading}
             >
-              {loading ? <Spinner size="sm" className="mr-2" /> : null}
-              {loading ? "Ingresando..." : "Ingresar"}
+              {loading ? <Spinner size="sm" /> : <Search className="h-4 w-4" />}
+              {loading ? "Verificando..." : "Continuar"}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            ¿No tienes cuenta?{" "}
-            <Link href="/registro" className="font-medium text-secondary hover:underline">
-              Regístrate aquí
+          {notFound && (
+            <div className="mt-6 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm space-y-3">
+              <p className="text-foreground">
+                No encontramos tu registro en Gym Control. Debes inscribirte primero para solicitar un préstamo.
+              </p>
+              <Button variant="outline" className="w-full gap-2" asChild>
+                <a href={gymUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Registrarme en Gym Control CDU
+                </a>
+              </Button>
+            </div>
+          )}
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            ¿Eres administrador?{" "}
+            <Link href="/auth/sso" className="underline hover:text-foreground">
+              Accede desde CampusFlow
             </Link>
           </p>
         </CardContent>

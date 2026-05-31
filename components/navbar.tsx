@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, getSolicitanteDisplayName } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -23,7 +23,7 @@ export function Navbar() {
     { href: "/reservas", label: "Reservar Cancha", icon: Calendar },
   ]
 
-  if (usuario?.rol === "admin") {
+  if (usuario?.rol === "admin" || usuario?.rol === "superadmin") {
     navLinks.push({ href: "/admin", label: "Administracion", icon: Shield })
   }
 
@@ -63,17 +63,20 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-                    {usuario.nombre.charAt(0)}
-                    {usuario.apellido.charAt(0)}
+                    {(getSolicitanteDisplayName(usuario) || "U").charAt(0)}
                   </div>
-                  <span className="hidden md:inline">{usuario.nombre}</span>
+                  <span className="hidden md:inline">{getSolicitanteDisplayName(usuario)}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{usuario.nombre} {usuario.apellido}</p>
-                  <p className="text-xs text-muted-foreground">{usuario.email}</p>
-                  <p className="text-xs text-muted-foreground">Codigo: {usuario.codigoEstudiante}</p>
+                  <p className="text-sm font-medium">{getSolicitanteDisplayName(usuario)}</p>
+                  <p className="text-xs text-muted-foreground">{usuario.correo ?? usuario.cedula}</p>
+                  {(usuario.numeroDocumento || usuario.codigoEstudiantil) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[usuario.numeroDocumento, usuario.codigoEstudiantil].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -109,10 +112,7 @@ export function Navbar() {
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" asChild>
-                <Link href="/login">Iniciar Sesion</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/registro">Registrarse</Link>
+                <Link href="/login">Identificarse</Link>
               </Button>
             </div>
           )}

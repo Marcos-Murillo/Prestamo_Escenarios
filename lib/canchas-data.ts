@@ -11,6 +11,7 @@ export const canchasData: Cancha[] = [
     estado: "disponible",
     cantidad: 2,
     horariosDisponibles: ["07:00", "08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+    sede: "melendez",
   },
   {
     id: "baloncesto-1",
@@ -21,6 +22,7 @@ export const canchasData: Cancha[] = [
     estado: "disponible",
     cantidad: 1,
     horariosDisponibles: ["07:00", "08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"],
+    sede: "melendez",
   },
   {
     id: "voleibol-1",
@@ -31,6 +33,7 @@ export const canchasData: Cancha[] = [
     estado: "disponible",
     cantidad: 1,
     horariosDisponibles: ["07:00", "08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+    sede: "melendez",
   },
   {
     id: "tenis-1",
@@ -41,6 +44,7 @@ export const canchasData: Cancha[] = [
     estado: "disponible",
     cantidad: 2,
     horariosDisponibles: ["07:00", "08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+    sede: "san_fernando",
   },
   {
     id: "futbol-sala-1",
@@ -51,6 +55,7 @@ export const canchasData: Cancha[] = [
     estado: "disponible",
     cantidad: 1,
     horariosDisponibles: ["07:00", "08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"],
+    sede: "san_fernando",
   },
 ]
 

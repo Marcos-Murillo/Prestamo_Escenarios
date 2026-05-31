@@ -1,16 +1,31 @@
 import type { TipoEscenario } from "./tipos-escenario"
+import type { Sede, SedeFiltro } from "./sede"
 
-export interface Usuario {
+export type UserRol = "solicitante" | "admin" | "superadmin"
+
+/** Sesión del usuario (solicitante gym o admin SSO). */
+export interface SessionUser {
   uid: string
-  email: string
-  nombre: string
-  apellido: string
-  codigoEstudiante?: string
-  carnet?: string
-  carrera: string
+  rol: UserRol
+  /** Sede asignada al admin (desde cdr-landing SSO). */
+  sede?: Sede
+  /** Sede que el superadmin elige para operar. */
+  adminSedeActiva?: SedeFiltro
+
+  // Solicitante — perfil gym_cdu
+  gymUserId?: string
+  nombres?: string
+  correo?: string
+  numeroDocumento?: string
+  codigoEstudiantil?: string
+  estamento?: string
+  facultad?: string
+  programaAcademico?: string
   telefono?: string
-  rol: "estudiante" | "admin" | "superadmin"
-  createdAt: Date
+
+  // Admin SSO
+  nombre?: string
+  cedula?: string
 }
 
 export interface Cancha {
@@ -22,27 +37,40 @@ export interface Cancha {
   imagen?: string
   estado: "disponible" | "mantenimiento" | "reservada"
   horariosDisponibles: string[]
-  cantidad: number          // cuántas unidades físicas hay de este espacio
+  cantidad: number
+  sede: Sede
 }
 
-// Representa una unidad física individual de un escenario (ej: "Cancha de Fútbol #3")
 export interface UnidadEscenario {
   id: string
   escenarioId: string
-  numero: number            // 1, 2, 3...
+  numero: number
   estado: "disponible" | "mantenimiento"
+}
+
+export interface ParticipanteReserva {
+  gymUserId: string
+  nombres: string
+  correo: string
+  numeroDocumento: string
+  codigoEstudiantil?: string
+  estamento?: string
+  programaAcademico?: string
 }
 
 export interface Reserva {
   id: string
-  usuarioId: string
+  sede: Sede
+  /** @deprecated usar solicitanteGymUserId */
+  usuarioId?: string
+  solicitanteGymUserId: string
+  solicitanteNumeroDocumento: string
   usuarioNombre: string
   usuarioEmail: string
-  codigoEstudiante?: string
-  usuarioCarnet?: string
+  codigoEstudiantil?: string
   canchaId: string
   canchaNombre: string
-  unidadAsignada?: number   // número de unidad asignada por el admin al aprobar
+  unidadAsignada?: number
   fecha: string
   horaInicio: string
   horaFin: string
@@ -54,6 +82,8 @@ export interface Reserva {
   cartaFirmada?: string
   participantes?: ParticipanteReserva[]
   totalParticipantes?: number
+  solicitante?: string
+  oficio?: string
 }
 
 export interface HorarioDisponible {
@@ -62,13 +92,5 @@ export interface HorarioDisponible {
   reservaId?: string
 }
 
-export interface ParticipanteReserva {
-  uid: string
-  nombre: string
-  apellido: string
-  email: string
-  carnet?: string
-  carrera?: string
-  rol: string
-}
-
+/** @deprecated Usar SessionUser */
+export type Usuario = SessionUser

@@ -8,11 +8,11 @@ import { AnimatePresence, motion } from "motion/react"
 import { cn } from "@/lib/utils"
 import {
   Calendar, ClipboardList, User,
-  Shield, ShieldCheck, MapPin, BarChart3,
-  LogOut, Trophy, Inbox, Users, CalendarDays
+  Shield, MapPin, BarChart3,
+  LogOut, Trophy, Inbox, CalendarDays
 } from "lucide-react"
 
-type Rol = "estudiante" | "admin" | "superadmin"
+type Rol = "solicitante" | "admin" | "superadmin"
 
 interface NavItem {
   href: string
@@ -22,33 +22,18 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // Estudiante: mis-reservas primero, luego reservar, perfil
-  { href: "/mis-reservas",         label: "Mis Reservas",   icon: ClipboardList, roles: ["estudiante"] },
-  { href: "/reservas",             label: "Reservar",       icon: Calendar,      roles: ["estudiante"] },
-  { href: "/perfil",               label: "Perfil",         icon: User,          roles: ["estudiante"] },
-  // Admin: peticiones, usuarios, panel admin, escenarios, estadísticas
-  { href: "/admin/peticiones",     label: "Peticiones",     icon: Inbox,         roles: ["admin"] },
-  { href: "/reservas",             label: "Crear Reserva",  icon: Calendar,      roles: ["admin"] },
-  { href: "/admin/usuarios",       label: "Usuarios",       icon: Users,         roles: ["admin"] },
-  { href: "/admin",                label: "Panel Admin",    icon: Shield,        roles: ["admin"] },
-  { href: "/admin/calendario",     label: "Calendario",     icon: CalendarDays,  roles: ["admin"] },
-  { href: "/admin/escenarios",     label: "Escenarios",     icon: MapPin,        roles: ["admin"] },
-  { href: "/admin/estadisticas",   label: "Estadísticas",   icon: BarChart3,     roles: ["admin"] },
-  // Superadmin: todas las páginas
-  { href: "/superadmin",           label: "Super Admin",    icon: ShieldCheck,   roles: ["superadmin"] },
-  { href: "/admin/peticiones",     label: "Peticiones",     icon: Inbox,         roles: ["superadmin"] },
-  { href: "/reservas",             label: "Crear Reserva",  icon: Calendar,      roles: ["superadmin"] },
-  { href: "/admin/usuarios",       label: "Usuarios",       icon: Users,         roles: ["superadmin"] },
-  { href: "/admin",                label: "Panel Admin",    icon: Shield,        roles: ["superadmin"] },
-  { href: "/admin/calendario",     label: "Calendario",     icon: CalendarDays,  roles: ["superadmin"] },
-  { href: "/admin/escenarios",     label: "Escenarios",     icon: MapPin,        roles: ["superadmin"] },
-  { href: "/admin/estadisticas",   label: "Estadísticas",   icon: BarChart3,     roles: ["superadmin"] },
-  { href: "/mis-reservas",         label: "Mis Reservas",   icon: ClipboardList, roles: ["superadmin"] },
-  { href: "/perfil",               label: "Perfil",         icon: User,          roles: ["superadmin"] },
+  { href: "/mis-reservas",         label: "Mis Préstamos",  icon: ClipboardList, roles: ["solicitante"] },
+  { href: "/reservas",             label: "Pedir Préstamo", icon: Calendar,      roles: ["solicitante"] },
+  { href: "/perfil",               label: "Perfil",         icon: User,          roles: ["solicitante"] },
+  { href: "/admin/peticiones",     label: "Peticiones",     icon: Inbox,         roles: ["admin", "superadmin"] },
+  { href: "/reservas",             label: "Crear Reserva",  icon: Calendar,      roles: ["admin", "superadmin"] },
+  { href: "/admin",                label: "Panel Admin",    icon: Shield,        roles: ["admin", "superadmin"] },
+  { href: "/admin/calendario",     label: "Calendario",     icon: CalendarDays,  roles: ["admin", "superadmin"] },
+  { href: "/admin/escenarios",     label: "Escenarios",     icon: MapPin,        roles: ["admin", "superadmin"] },
+  { href: "/admin/estadisticas",   label: "Estadísticas",   icon: BarChart3,     roles: ["admin", "superadmin"] },
 ]
 
-// Rutas donde nunca debe aparecer el sidebar
-const PUBLIC_PATHS = ["/", "/login", "/registro"]
+const PUBLIC_PATHS = ["/", "/login", "/registro", "/auth/sso"]
 
 interface DockItemProps {
   title: string
@@ -102,7 +87,6 @@ function DockItem({ title, icon, href, active, onClick }: DockItemProps) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router   = useRouter()
   const { usuario, loading } = useAuth()
 
   if (PUBLIC_PATHS.includes(pathname)) return null
@@ -110,18 +94,16 @@ export function Sidebar() {
   if (loading) {
     return (
       <>
-        {/* Desktop skeleton */}
         <div className="hidden md:block fixed left-4 top-1/2 z-50 -translate-y-1/2">
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-xl opacity-40">
             <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
-            <div className="my-1 h-px w-6 bg-border" />
-            {[1,2,3].map(i => <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />)}
           </div>
         </div>
-        {/* Mobile skeleton */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card px-4 py-2">
           <div className="flex justify-around">
-            {[1,2,3,4].map(i => <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+            ))}
           </div>
         </div>
       </>
@@ -130,22 +112,20 @@ export function Sidebar() {
 
   if (!usuario) return null
 
-  const visibleItems = NAV_ITEMS.filter(item => item.roles.includes(usuario.rol))
-  // En móvil mostramos máximo 5 ítems para que quepan
+  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(usuario.rol))
   const mobileItems = visibleItems.slice(0, 5)
 
   return (
     <>
-      {/* ── Desktop: dock lateral ── */}
       <div className="hidden md:block fixed left-4 top-1/2 z-50 -translate-y-1/2">
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-xl">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
             <Trophy className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="my-1 h-px w-6 bg-border" />
-          {visibleItems.map(item => (
+          {visibleItems.map((item) => (
             <DockItem
-              key={item.href}
+              key={`${item.href}-${item.label}`}
               title={item.label}
               icon={<item.icon className="w-full h-full" />}
               href={item.href}
@@ -157,18 +137,17 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* ── Mobile: bottom nav ── */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-sm">
         <div className="flex items-center justify-around px-2 py-1">
-          {mobileItems.map(item => {
+          {mobileItems.map((item) => {
             const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"))
             return (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.label}`}
                 href={item.href}
                 className={cn(
                   "flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-colors min-w-0",
-                  active ? "text-primary" : "text-muted-foreground"
+                  active ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <item.icon className={cn("h-5 w-5 shrink-0", active && "text-primary")} />
@@ -185,7 +164,6 @@ export function Sidebar() {
   )
 }
 
-// Componente separado para el logout que tiene acceso al signOut del contexto
 function LogoutButton() {
   const router = useRouter()
   const { signOut } = useAuth()
@@ -197,31 +175,22 @@ function LogoutButton() {
   }
 
   return (
-    <div
-      className="relative flex items-center"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="relative flex items-center" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <AnimatePresence>
         {hovered && (
           <motion.div
             initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -6 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-card-foreground shadow-lg pointer-events-none"
+            className="absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-lg pointer-events-none"
           >
             Cerrar sesión
           </motion.div>
         )}
       </AnimatePresence>
-      <button
-        onClick={handleLogout}
-        className="flex items-center"
-        aria-label="Cerrar sesión"
-      >
+      <button onClick={handleLogout} className="flex items-center" aria-label="Cerrar sesión">
         <div className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-          <div className="h-5 w-5"><LogOut className="w-full h-full" /></div>
+          <LogOut className="w-full h-full h-5 w-5" />
         </div>
       </button>
     </div>
@@ -232,15 +201,13 @@ function MobileLogoutButton() {
   const router = useRouter()
   const { signOut } = useAuth()
 
-  const handleLogout = async () => {
-    await signOut()
-    router.push("/login")
-  }
-
   return (
     <button
-      onClick={handleLogout}
-      className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl text-muted-foreground hover:text-destructive transition-colors"
+      onClick={async () => {
+        await signOut()
+        router.push("/login")
+      }}
+      className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl text-muted-foreground hover:text-destructive"
       aria-label="Cerrar sesión"
     >
       <LogOut className="h-5 w-5 shrink-0" />

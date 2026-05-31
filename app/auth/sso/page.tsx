@@ -34,20 +34,18 @@ function SSOHandler() {
           nombre: data.nombre,
           cedula: data.cedula,
           rol: data.rol,
+          sede: data.sede,
         })
 
         const redirectParam = searchParams.get("redirect")
-        const defaultRedirect =
-          data.rol === "superadmin"
-            ? "/superadmin"
-            : data.rol === "admin"
-              ? "/admin"
-              : "/reservas"
+        const defaultRedirect = data.rol === "superadmin" || data.rol === "admin" ? "/admin" : "/mis-reservas"
 
-        const allowed = ["/superadmin", "/admin", "/admin/peticiones", "/reservas", "/mis-reservas"]
+        const allowed = ["/admin", "/admin/peticiones", "/admin/escenarios", "/admin/calendario", "/admin/estadisticas", "/reservas"]
         const target =
           redirectParam && allowed.some((p) => redirectParam.startsWith(p))
-            ? redirectParam
+            ? redirectParam === "/superadmin"
+              ? "/admin"
+              : redirectParam
             : defaultRedirect
 
         router.replace(target)
@@ -60,7 +58,7 @@ function SSOHandler() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4">
         <p className="text-center text-sm text-destructive">{error}</p>
         <a href="/login" className="text-sm text-muted-foreground underline">
-          Ir al login
+          Volver al inicio
         </a>
       </div>
     )

@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, matchesAdminSede } from "@/lib/auth-context"
+import { resolveSede, SEDE_LABELS, DEFAULT_SEDE, type Sede } from "@/lib/sede"
+import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy
 } from "firebase/firestore"
 import { Cancha } from "@/lib/types"
 import { canchasData, getCanchaStripeColor } from "@/lib/canchas-data"
-import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -45,7 +46,7 @@ const EMPTY_FORM: FormState = {
 
 export default function EscenariosPage() {
   const router = useRouter()
-  const { usuario, loading: authLoading } = useAuth()
+  const { usuario, loading: authLoading, adminSede, isStaff } = useAuth()
   const [escenarios, setEscenarios] = useState<Cancha[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -57,14 +58,14 @@ export default function EscenariosPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!usuario) { router.replace("/login"); return }
-      if (usuario.rol === "estudiante") { router.replace("/"); return }
+      if (!isStaff) { router.replace("/"); return }
     }
-  }, [authLoading, usuario, router])
+  }, [authLoading, usuario, isStaff, router])
 
   useEffect(() => {
-    if (!usuario || usuario.rol === "estudiante") return
+    if (!usuario || !isStaff) return
     cargarEscenarios()
-  }, [usuario])
+  }, [usuario, isStaff, adminSede])
 
   async function cargarEscenarios() {
     setLoading(true)
@@ -79,7 +80,11 @@ export default function EscenariosPage() {
       if (snap.empty) {
         setEscenarios(canchasData)
       } else {
-        setEscenarios(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Cancha))
+        setEscenarios(
+          snap.docs
+            .map((d) => ({ id: d.id, sede: resolveSede(d.data().sede), ...d.data() }) as Cancha)
+            .filter((e) => matchesAdminSede(e, adminSede)),
+        )
       }
     } catch { setEscenarios(canchasData) }
     finally { setLoading(false) }
@@ -110,12 +115,20 @@ export default function EscenariosPage() {
       return
     }
     setSaving(true)
+    const sedeEscenario =
+      adminSede === "todas"
+        ? (usuario?.sede ?? DEFAULT_SEDE)
+        : (adminSede as Sede)
+
     const data = {
-      nombre: form.nombre, tipo: form.tipo,
+      nombre: form.nombre,
+      tipo: form.tipo,
       capacidad: parseInt(form.capacidad),
       cantidad: parseInt(form.cantidad) || 1,
-      ubicacion: form.ubicacion, estado: form.estado,
+      ubicacion: form.ubicacion,
+      estado: form.estado,
       horariosDisponibles: form.horarios,
+      sede: editando ? (editando.sede ?? sedeEscenario) : sedeEscenario,
     }
     try {
       if (!isFirebaseConfigured || !db) {
@@ -160,17 +173,20 @@ export default function EscenariosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pl-20">
-      <Sidebar />
+    <div className="min-h-screen bg-background">
       <main className="container px-4 py-8 md:px-6">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-primary">Escenarios</h1>
-            <p className="mt-1 text-muted-foreground">Gestiona las canchas y espacios deportivos</p>
+            <p className="mt-1 text-muted-foreground">Gestiona los espacios deportivos de tu sede</p>
           </div>
-          <Button onClick={abrirCrear} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Escenario
-          </Button>
+          <div className="flex items-center gap-3">
+            <AdminSedeBadge />
+            <AdminSedeSelector />
+            <Button onClick={abrirCrear} className="bg-accent text-accent-foreground hover:bg-accent/90" disabled={adminSede === "todas"}>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo Escenario
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -183,7 +199,7 @@ export default function EscenariosPage() {
                   <Badge variant="outline" className="shrink-0">{labelTipoEscenario(c.tipo)}</Badge>
                 </div>
                 <CardDescription className="flex items-center gap-1 text-xs">
-                  <MapPin className="h-3 w-3" />{c.ubicacion}
+                  <MapPin className="h-3 w-3" />{c.ubicacion} · {SEDE_LABELS[resolveSede(c.sede)]}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-3">

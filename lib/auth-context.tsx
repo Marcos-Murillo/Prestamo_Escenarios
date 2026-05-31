@@ -1,181 +1,190 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react"
-import {
-  User,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-} from "firebase/auth"
-import { doc, getDoc, setDoc } from "firebase/firestore"
-import { auth, db, isFirebaseConfigured } from "./firebase"
-import { Usuario } from "./types"
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react"
+import type { SessionUser, UserRol } from "./types"
+import type { GymUserPublic } from "./gym-user-types"
+import type { Sede, SedeFiltro } from "./sede"
+import { DEFAULT_SEDE, resolveSede } from "./sede"
 
-// Usuario demo para cuando Firebase no esta configurado
-const DEMO_USER: Usuario = {
-  uid: "demo-user-123",
-  email: "estudiante@universidad.edu",
-  nombre: "Juan",
-  apellido: "Perez Demo",
-  carnet: "2024001",
-  carrera: "Ingenieria en Sistemas",
-  telefono: "5555-1234",
-  rol: "estudiante",
-  createdAt: new Date(),
-}
-
-const DEMO_ADMIN: Usuario = {
-  uid: "demo-admin-123",
-  email: "admin@universidad.edu",
-  nombre: "Admin",
-  apellido: "Sistema",
-  carnet: "ADMIN001",
-  carrera: "Administracion",
-  telefono: "5555-0000",
-  rol: "admin",
-  createdAt: new Date(),
-}
-
+const GYM_SESSION_KEY = "prestamos_gym_session"
 const SSO_STORAGE_KEY = "prestamos_sso_session"
 
 export type SsoLoginPayload = {
   uid: string
   nombre: string
   cedula: string
-  rol: "estudiante" | "admin" | "superadmin"
+  rol: UserRol
+  sede?: string
+}
+
+const DEMO_SOLICITANTE: SessionUser = {
+  uid: "demo-gym-user",
+  rol: "solicitante",
+  gymUserId: "demo-gym-user",
+  nombres: "Juan Pérez Demo",
+  correo: "estudiante@universidad.edu",
+  numeroDocumento: "1007260358",
+  codigoEstudiantil: "202625413",
+  estamento: "ESTUDIANTE",
+  facultad: "Ingeniería",
+  programaAcademico: "Ingeniería en Sistemas",
+}
+
+const DEMO_ADMIN: SessionUser = {
+  uid: "demo-admin",
+  rol: "admin",
+  nombre: "Admin Demo",
+  cedula: "1234567890",
+  sede: "melendez",
+  adminSedeActiva: "melendez",
 }
 
 interface AuthContextType {
-  user: User | null
-  usuario: Usuario | null
+  usuario: SessionUser | null
   loading: boolean
   isDemo: boolean
   isSso: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, datos: Omit<Usuario, "uid" | "email" | "rol" | "createdAt">) => Promise<void>
+  isSolicitante: boolean
+  isStaff: boolean
+  adminSede: SedeFiltro
   signOut: () => Promise<void>
+  loginGym: (user: GymUserPublic) => void
   loginSSO: (data: SsoLoginPayload) => void
-  demoLogin: (tipo: "estudiante" | "admin") => void
+  setAdminSedeActiva: (sede: SedeFiltro) => void
+  demoLogin: (tipo: "solicitante" | "admin") => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function gymUserToSession(user: GymUserPublic): SessionUser {
+  return {
+    uid: user.id,
+    rol: "solicitante",
+    gymUserId: user.id,
+    nombres: user.nombres,
+    correo: user.correo,
+    numeroDocumento: user.numeroDocumento,
+    codigoEstudiantil: user.codigoEstudiantil,
+    estamento: user.estamento,
+    facultad: user.facultad,
+    programaAcademico: user.programaAcademico,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [usuario, setUsuario] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured)
+  const [isDemo, setIsDemo] = useState(false)
   const [isSso, setIsSso] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const raw = sessionStorage.getItem(SSO_STORAGE_KEY)
-      if (raw) {
-        try {
-          setUsuario(JSON.parse(raw) as Usuario)
-          setIsSso(true)
-        } catch {
-          sessionStorage.removeItem(SSO_STORAGE_KEY)
-        }
+    if (typeof window === "undefined") return
+
+    const ssoRaw = sessionStorage.getItem(SSO_STORAGE_KEY)
+    if (ssoRaw) {
+      try {
+        setUsuario(JSON.parse(ssoRaw) as SessionUser)
+        setIsSso(true)
+        setLoading(false)
+        return
+      } catch {
+        sessionStorage.removeItem(SSO_STORAGE_KEY)
       }
     }
 
-    if (!isFirebaseConfigured || !auth) {
-      setLoading(false)
-      return undefined
+    const gymRaw = sessionStorage.getItem(GYM_SESSION_KEY)
+    if (gymRaw) {
+      try {
+        setUsuario(JSON.parse(gymRaw) as SessionUser)
+        setIsSso(false)
+      } catch {
+        sessionStorage.removeItem(GYM_SESSION_KEY)
+      }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser)
-      if (firebaseUser && db) {
-        const userDoc = await getDoc(doc(db, "usuarios", firebaseUser.uid))
-        if (userDoc.exists()) {
-          setUsuario(userDoc.data() as Usuario)
-          setIsSso(false)
-          sessionStorage.removeItem(SSO_STORAGE_KEY)
-        }
-      } else if (!sessionStorage.getItem(SSO_STORAGE_KEY)) {
-        setUsuario(null)
-      }
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
+    setLoading(false)
   }, [])
 
-  const signIn = async (emailOrCarnet: string, password: string) => {
-    if (!isFirebaseConfigured || !auth || !db) {
-      throw new Error("Firebase no esta configurado. Usa el modo demo.")
-    }
-    // Si no tiene @ asumimos que es un carnet — convertimos al formato de email interno
-    const email = emailOrCarnet.includes("@")
-      ? emailOrCarnet
-      : `${emailOrCarnet}@admin.prestamos.local`
-    const result = await signInWithEmailAndPassword(auth, email, password)
-    const userDoc = await getDoc(doc(db, "usuarios", result.user.uid))
-    if (userDoc.exists()) {
-      setUsuario(userDoc.data() as Usuario)
-    }
-  }
-
-  const signUp = async (
-    email: string,
-    password: string,
-    datos: Omit<Usuario, "uid" | "email" | "rol" | "createdAt">
-  ) => {
-    if (!isFirebaseConfigured || !auth || !db) {
-      throw new Error("Firebase no esta configurado. Usa el modo demo.")
-    }
-    const result = await createUserWithEmailAndPassword(auth, email, password)
-    const nuevoUsuario: Usuario = {
-      uid: result.user.uid,
-      email,
-      ...datos,
-      rol: "estudiante",
-      createdAt: new Date(),
-    }
-    await setDoc(doc(db, "usuarios", result.user.uid), nuevoUsuario)
-    setUsuario(nuevoUsuario)
-  }
-
-  const signOut = async () => {
-    if (isFirebaseConfigured && auth) {
-      await firebaseSignOut(auth)
-    }
-    sessionStorage.removeItem(SSO_STORAGE_KEY)
-    setUser(null)
-    setUsuario(null)
+  const loginGym = useCallback((user: GymUserPublic) => {
+    const session = gymUserToSession(user)
+    setUsuario(session)
     setIsSso(false)
-    setIsDemo(!isFirebaseConfigured)
-  }
+    setIsDemo(false)
+    sessionStorage.setItem(GYM_SESSION_KEY, JSON.stringify(session))
+    sessionStorage.removeItem(SSO_STORAGE_KEY)
+  }, [])
 
-  const loginSSO = (data: SsoLoginPayload) => {
-    const parts = data.nombre.trim().split(/\s+/)
-    const ssoUsuario: Usuario = {
+  const loginSSO = useCallback((data: SsoLoginPayload) => {
+    const sede = data.sede ? resolveSede(data.sede) : undefined
+    const ssoUsuario: SessionUser = {
       uid: data.uid,
-      email: `${data.cedula}@sso.prestamos.local`,
-      nombre: parts[0] ?? data.nombre,
-      apellido: parts.slice(1).join(" ") || "CDR",
-      carnet: data.cedula,
-      carrera: "CDU",
       rol: data.rol,
-      createdAt: new Date(),
+      nombre: data.nombre,
+      cedula: data.cedula,
+      sede,
+      adminSedeActiva: data.rol === "superadmin" ? "todas" : sede ?? DEFAULT_SEDE,
     }
     setUsuario(ssoUsuario)
     setIsSso(true)
     setIsDemo(false)
     sessionStorage.setItem(SSO_STORAGE_KEY, JSON.stringify(ssoUsuario))
+    sessionStorage.removeItem(GYM_SESSION_KEY)
+  }, [])
+
+  const setAdminSedeActiva = useCallback((sede: SedeFiltro) => {
+    setUsuario((prev) => {
+      if (!prev || prev.rol === "solicitante") return prev
+      const updated = { ...prev, adminSedeActiva: sede }
+      sessionStorage.setItem(SSO_STORAGE_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
+  const signOut = async () => {
+    sessionStorage.removeItem(SSO_STORAGE_KEY)
+    sessionStorage.removeItem(GYM_SESSION_KEY)
+    setUsuario(null)
+    setIsSso(false)
+    setIsDemo(false)
   }
 
-  const demoLogin = (tipo: "estudiante" | "admin") => {
-    const demoUsuario = tipo === "admin" ? DEMO_ADMIN : DEMO_USER
+  const demoLogin = (tipo: "solicitante" | "admin") => {
+    const demoUsuario = tipo === "admin" ? DEMO_ADMIN : DEMO_SOLICITANTE
     setUsuario(demoUsuario)
     setIsDemo(true)
+    setIsSso(false)
+    if (tipo === "solicitante") {
+      sessionStorage.setItem(GYM_SESSION_KEY, JSON.stringify(demoUsuario))
+    }
   }
 
+  const isSolicitante = usuario?.rol === "solicitante"
+  const isStaff = usuario?.rol === "admin" || usuario?.rol === "superadmin"
+
+  const adminSede: SedeFiltro =
+    usuario?.rol === "superadmin"
+      ? (usuario.adminSedeActiva ?? "todas")
+      : usuario?.rol === "admin"
+        ? (usuario.sede ?? DEFAULT_SEDE)
+        : DEFAULT_SEDE
+
   return (
-    <AuthContext.Provider value={{ user, usuario, loading, isDemo, isSso, signIn, signUp, signOut, loginSSO, demoLogin }}>
+    <AuthContext.Provider
+      value={{
+        usuario,
+        loading,
+        isDemo,
+        isSso,
+        isSolicitante,
+        isStaff,
+        adminSede,
+        signOut,
+        loginGym,
+        loginSSO,
+        setAdminSedeActiva,
+        demoLogin,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
@@ -187,4 +196,27 @@ export function useAuth() {
     throw new Error("useAuth debe usarse dentro de un AuthProvider")
   }
   return context
+}
+
+/** Sede efectiva para filtrar datos admin. */
+export function getEffectiveAdminSede(usuario: SessionUser | null): SedeFiltro {
+  if (!usuario || usuario.rol === "solicitante") return DEFAULT_SEDE
+  if (usuario.rol === "superadmin") return usuario.adminSedeActiva ?? "todas"
+  return usuario.sede ?? DEFAULT_SEDE
+}
+
+export function matchesAdminSede<T extends { sede?: string }>(
+  item: T,
+  sedeFiltro: SedeFiltro,
+): boolean {
+  if (sedeFiltro === "todas") return true
+  return resolveSede(item.sede) === resolveSede(sedeFiltro)
+}
+
+export function getSolicitanteId(usuario: SessionUser): string {
+  return usuario.gymUserId ?? usuario.uid
+}
+
+export function getSolicitanteDisplayName(usuario: SessionUser): string {
+  return usuario.nombres ?? usuario.nombre ?? "Usuario"
 }

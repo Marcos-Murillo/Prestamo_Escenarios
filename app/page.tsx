@@ -7,20 +7,18 @@ import { Spinner } from "@/components/ui/spinner"
 
 export default function HomePage() {
   const router = useRouter()
-  const { usuario, loading } = useAuth()
+  const { usuario, loading, isStaff } = useAuth()
 
   useEffect(() => {
     if (loading) return
     if (!usuario) {
       router.replace("/login")
-    } else if (usuario.rol === "superadmin") {
-      router.replace("/superadmin")
-    } else if (usuario.rol === "admin") {
+    } else if (isStaff) {
       router.replace("/admin")
     } else {
       router.replace("/mis-reservas")
     }
-  }, [loading, usuario, router])
+  }, [loading, usuario, isStaff, router])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

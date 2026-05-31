@@ -75,7 +75,7 @@ export function generarComprobantePDF(reserva: Reserva): void {
   
   doc.text(`Nombre: ${reserva.usuarioNombre}`, 20, y)
   y += 7
-  doc.text(`Codigo: ${reserva.codigoEstudiante}`, 20, y)
+  doc.text(`Codigo: ${reserva.codigoEstudiantil ?? reserva.solicitanteNumeroDocumento ?? ""}`, 20, y)
   y += 7
   doc.text(`Email: ${reserva.usuarioEmail}`, 20, y)
   
