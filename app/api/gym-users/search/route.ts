@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { isGymCduConfigured } from "@/lib/firebase-gym-cdu-admin"
-import { searchGymUserByCode } from "@/lib/gym-user-search"
+import { lookupGymUser } from "@/lib/gym-user-lookup"
 import { toGymUserPublic } from "@/lib/gym-user-types"
 
-/** firebase-admin requiere Node.js (no Edge). */
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
@@ -23,11 +21,10 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-/** Comprobar que la ruta existe: GET /api/gym-users/search */
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    gymConfigured: isGymCduConfigured(),
+    gymProjectId: process.env.NEXT_PUBLIC_GYM_FIREBASE_PROJECT_ID ?? "espacioscdu",
   })
 }
 
@@ -37,25 +34,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Demasiadas búsquedas. Intenta en un momento." }, { status: 429 })
   }
 
-  if (!isGymCduConfigured()) {
-    return NextResponse.json(
-      { error: "Búsqueda de usuarios no configurada. Contacta al administrador." },
-      { status: 503 },
-    )
-  }
-
   try {
     const { term } = await req.json()
-    if (!term || typeof term !== "string" || term.trim().length < 4) {
-      return NextResponse.json(
-        { error: "Ingresa la cédula completa o el código estudiantil completo." },
-        { status: 400 },
-      )
+    if (!term || typeof term !== "string" || !term.trim()) {
+      return NextResponse.json({ error: "Ingresa tu cédula o código estudiantil." }, { status: 400 })
     }
 
-    const user = await searchGymUserByCode(term.trim())
+    const user = await lookupGymUser(term)
     if (!user) {
       return NextResponse.json({ found: false, user: null })
+    }
+    if (!user.activo) {
+      return NextResponse.json({
+        found: false,
+        user: null,
+        error: "Tu usuario no está activo en Gym Control. Contacta al personal del CDU.",
+      })
     }
 
     return NextResponse.json({ found: true, user: toGymUserPublic(user) })

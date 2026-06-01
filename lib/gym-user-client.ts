@@ -1,47 +1,32 @@
-import type { GymUserPublic } from "./gym-user-types"
+import { lookupGymUser } from "./gym-user-lookup"
+import { toGymUserPublic, type GymUserPublic } from "./gym-user-types"
 
 export function getGymCduRegistrationUrl(): string {
-  return process.env.NEXT_PUBLIC_URL_GYM_CDU ?? "https://gym-cdu.vercel.app"
+  return process.env.NEXT_PUBLIC_URL_GYM_CDU ?? "https://gym-cdu-two.vercel.app"
 }
 
-function apiBase(): string {
-  if (typeof window !== "undefined") return window.location.origin
-  return process.env.NEXT_PUBLIC_APP_URL ?? ""
-}
-
-export async function searchGymUser(term: string): Promise<{ found: boolean; user: GymUserPublic | null; error?: string }> {
-  const url = `${apiBase()}/api/gym-users/search`
-
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ term: term.trim() }),
-    })
-  } catch {
-    return { found: false, user: null, error: "No se pudo conectar con el servidor." }
+export async function searchGymUser(
+  term: string,
+): Promise<{ found: boolean; user: GymUserPublic | null; error?: string }> {
+  const t = term.trim()
+  if (!t) {
+    return { found: false, user: null, error: "Ingresa tu cédula o código estudiantil." }
   }
 
-  if (res.status === 404) {
-    return {
-      found: false,
-      user: null,
-      error:
-        "No se encontró la API de búsqueda. Asegúrate de ejecutar «npm run dev» dentro de prestamos_escenarios (no otro proyecto en el mismo puerto) y reinicia el servidor.",
+  try {
+    const profile = await lookupGymUser(t)
+    if (!profile) {
+      return { found: false, user: null }
     }
-  }
-
-  let data: { error?: string; found?: boolean; user?: GymUserPublic | null }
-  try {
-    data = await res.json()
+    if (!profile.activo) {
+      return {
+        found: false,
+        user: null,
+        error: "Tu usuario no está activo en Gym Control. Contacta al personal del CDU.",
+      }
+    }
+    return { found: true, user: toGymUserPublic(profile) }
   } catch {
-    return { found: false, user: null, error: "Respuesta inválida del servidor." }
+    return { found: false, user: null, error: "Error al buscar. Intenta de nuevo." }
   }
-
-  if (!res.ok) {
-    return { found: false, user: null, error: data.error ?? "Error al buscar" }
-  }
-
-  return { found: Boolean(data.found), user: data.user ?? null }
 }

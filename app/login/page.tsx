@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { searchGymUser, getGymCduRegistrationUrl } from "@/lib/gym-user-client"
 import { Button } from "@/components/ui/button"
@@ -33,8 +32,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const t = termino.trim()
-    if (t.length < 4) {
-      toast.error("Ingresa tu cédula o código estudiantil completo")
+    if (!t) {
+      toast.error("Ingresa tu cédula o código estudiantil")
       return
     }
 
@@ -42,12 +41,9 @@ export default function LoginPage() {
     setNotFound(false)
     try {
       const { found, user, error } = await searchGymUser(t)
-      if (error) {
-        toast.error(error)
-        return
-      }
       if (!found || !user) {
-        setNotFound(true)
+        if (error) toast.error(error)
+        else setNotFound(true)
         return
       }
       loginGym(user)
@@ -94,7 +90,7 @@ export default function LoginPage() {
                 id="termino"
                 type="text"
                 inputMode="numeric"
-                placeholder="Ej: 1007260358 o 202625413"
+                placeholder="Ingresa tu documento o código"
                 value={termino}
                 onChange={(e) => {
                   setTermino(e.target.value)
@@ -131,10 +127,15 @@ export default function LoginPage() {
           )}
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            ¿Eres administrador?{" "}
-            <Link href="/auth/sso" className="underline hover:text-foreground">
-              Accede desde CampusFlow
-            </Link>
+            ¿No te has registrado aún?{" "}
+            <a
+              href={gymUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Regístrate en CDUControl
+            </a>
           </p>
         </CardContent>
       </Card>

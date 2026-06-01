@@ -170,8 +170,8 @@ export default function ReservasPage() {
 
   async function buscarYAgregarParticipante() {
     const termino = busquedaParticipante.trim()
-    if (termino.length < 4) {
-      toast.error("Ingresa la cédula o código estudiantil completo")
+    if (!termino) {
+      toast.error("Ingresa la cédula o código estudiantil")
       return
     }
 
@@ -180,12 +180,9 @@ export default function ReservasPage() {
     setParticipanteNoEncontrado(false)
     try {
       const { found, user, error } = await searchGymUser(termino)
-      if (error) {
-        toast.error(error)
-        return
-      }
       if (!found || !user) {
-        setParticipanteNoEncontrado(true)
+        if (error) toast.error(error)
+        else setParticipanteNoEncontrado(true)
         return
       }
       if (user.id === solicitanteId) {
@@ -599,7 +596,7 @@ export default function ReservasPage() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Cédula o código estudiantil"
+                      placeholder="Ingresa tu documento o código"
                       value={busquedaParticipante}
                       onChange={(e) => {
                         setBusquedaParticipante(e.target.value)
