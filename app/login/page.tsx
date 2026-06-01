@@ -33,8 +33,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const t = termino.trim()
-    if (t.length < 3) {
-      toast.error("Ingresa tu cédula o código estudiantil (mínimo 3 caracteres)")
+    if (t.length < 4) {
+      toast.error("Ingresa tu cédula o código estudiantil completo")
       return
     }
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
 
         <CardContent className="px-8 py-8">
           <p className="mb-6 text-center text-sm text-muted-foreground">
-            Ingresa tu cédula o código estudiantil. Debes estar registrado en Gym Control CDU.
+            Ingresa tu cédula o código estudiantil completo (coincidencia exacta). Debes estar registrado en Gym Control CDU.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">

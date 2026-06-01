@@ -170,8 +170,8 @@ export default function ReservasPage() {
 
   async function buscarYAgregarParticipante() {
     const termino = busquedaParticipante.trim()
-    if (termino.length < 3) {
-      toast.error("Ingresa cédula o código (mínimo 3 caracteres)")
+    if (termino.length < 4) {
+      toast.error("Ingresa la cédula o código estudiantil completo")
       return
     }
 
@@ -591,7 +591,7 @@ export default function ReservasPage() {
                   {esAdmin ? "Participantes *" : "Paso 3 — Participantes *"}
                 </CardTitle>
                 <CardDescription>
-                  Busca por cédula o código estudiantil en Gym Control. Mínimo un participante además del solicitante.
+                  Busca por cédula o código estudiantil completo en Gym Control. Mínimo un participante además del solicitante.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -3,6 +3,10 @@ import { isGymCduConfigured } from "@/lib/firebase-gym-cdu-admin"
 import { searchGymUserByCode } from "@/lib/gym-user-search"
 import { toGymUserPublic } from "@/lib/gym-user-types"
 
+/** firebase-admin requiere Node.js (no Edge). */
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 const rateLimit = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT = 40
 const RATE_WINDOW_MS = 60_000
@@ -17,6 +21,14 @@ function checkRateLimit(ip: string): boolean {
   if (entry.count >= RATE_LIMIT) return false
   entry.count++
   return true
+}
+
+/** Comprobar que la ruta existe: GET /api/gym-users/search */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    gymConfigured: isGymCduConfigured(),
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -34,8 +46,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const { term } = await req.json()
-    if (!term || typeof term !== "string" || term.trim().length < 3) {
-      return NextResponse.json({ error: "Ingresa al menos 3 caracteres (cédula o código)." }, { status: 400 })
+    if (!term || typeof term !== "string" || term.trim().length < 4) {
+      return NextResponse.json(
+        { error: "Ingresa la cédula completa o el código estudiantil completo." },
+        { status: 400 },
+      )
     }
 
     const user = await searchGymUserByCode(term.trim())
