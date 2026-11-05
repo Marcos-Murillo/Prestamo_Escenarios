@@ -1,13 +1,14 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { cn } from "@/lib/utils"
 import {
-  Calendar, ClipboardList, User,
+  Calendar,
   Shield, MapPin, BarChart3,
   LogOut, Trophy, Inbox, CalendarDays
 } from "lucide-react"
@@ -22,9 +23,6 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/mis-reservas",         label: "Mis Préstamos",  icon: ClipboardList, roles: ["solicitante"] },
-  { href: "/reservas",             label: "Pedir Préstamo", icon: Calendar,      roles: ["solicitante"] },
-  { href: "/perfil",               label: "Perfil",         icon: User,          roles: ["solicitante"] },
   { href: "/admin/peticiones",     label: "Peticiones",     icon: Inbox,         roles: ["admin", "superadmin"] },
   { href: "/reservas",             label: "Crear Reserva",  icon: Calendar,      roles: ["admin", "superadmin"] },
   { href: "/admin",                label: "Panel Admin",    icon: Shield,        roles: ["admin", "superadmin"] },
@@ -165,13 +163,12 @@ export function Sidebar() {
 }
 
 function LogoutButton() {
-  const router = useRouter()
   const { signOut } = useAuth()
   const [hovered, setHovered] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
-    router.push("/login")
+    goToAsistencia()
   }
 
   return (
@@ -198,14 +195,13 @@ function LogoutButton() {
 }
 
 function MobileLogoutButton() {
-  const router = useRouter()
   const { signOut } = useAuth()
 
   return (
     <button
       onClick={async () => {
         await signOut()
-        router.push("/login")
+        goToAsistencia()
       }}
       className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl text-muted-foreground hover:text-destructive"
       aria-label="Cerrar sesión"

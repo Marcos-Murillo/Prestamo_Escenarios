@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { filterBySede } from "@/lib/sede"
 import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
@@ -27,7 +27,6 @@ const ESTADO_COLOR: Record<string, string> = {
 }
 
 export default function CalendarioPage() {
-  const router = useRouter()
   const { usuario, loading: authLoading, adminSede, isStaff } = useAuth()
   const [reservas, setReservas]     = useState<Reserva[]>([])
   const [loading, setLoading]       = useState(true)
@@ -36,10 +35,10 @@ export default function CalendarioPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!usuario) { router.replace("/login"); return }
-      if (!isStaff) { router.replace("/mis-reservas"); return }
+      if (!usuario) { goToAsistencia(); return }
+      if (!isStaff) { goToAsistencia(); return }
     }
-  }, [authLoading, usuario, isStaff, router])
+  }, [authLoading, usuario, isStaff])
 
   useEffect(() => {
     if (!usuario || !isStaff) return

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, getSolicitanteId, getSolicitanteDisplayName } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
 import { collection, getDocs, query, orderBy, addDoc, Timestamp, where } from "firebase/firestore"
 import { canchasData } from "@/lib/canchas-data"
@@ -10,7 +11,7 @@ import { labelTipoEscenario } from "@/lib/tipos-escenario"
 import { Cancha, ParticipanteReserva } from "@/lib/types"
 import { SEDES_ACTIVAS, SEDE_LABELS, type Sede, resolveSede } from "@/lib/sede"
 import { requiereCartaFirmada } from "@/lib/sede-rules"
-import { searchGymUser } from "@/lib/gym-user-client"
+import { searchAsistenciaUser } from "@/lib/asistencia-user-lookup"
 import type { GymUserPublic } from "@/lib/gym-user-types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,7 @@ import { CalendarIcon, Upload, CheckCircle2, MapPin, Users, FileText, X, Downloa
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { generarCartaPrestamo } from "@/lib/carta-prestamo"
+import { generarFormatoCrd, escenarioCrdDesdeTipo, tipoUsuarioDesdeEstamento } from "@/lib/formato-crd"
 import { GymRegisterPrompt } from "@/components/gym-register-prompt"
 import { AdminSedeBadge } from "@/components/admin-sede-selector"
 import { matchesAdminSede } from "@/lib/auth-context"
@@ -82,8 +83,12 @@ export default function ReservasPage() {
   }, [esAdmin, adminSede])
 
   useEffect(() => {
-    if (!authLoading && !usuario) router.replace("/login")
-  }, [authLoading, usuario, router])
+    if (authLoading) return
+    if (!usuario || !isStaff) {
+      goToAsistencia()
+      return
+    }
+  }, [authLoading, usuario, isStaff])
 
   useEffect(() => {
     if (!usuario) return
@@ -179,7 +184,7 @@ export default function ReservasPage() {
     setBuscandoParticipante(true)
     setParticipanteNoEncontrado(false)
     try {
-      const { found, user, error } = await searchGymUser(termino)
+      const { found, user, error } = await searchAsistenciaUser(termino)
       if (!found || !user) {
         if (error) toast.error(error)
         else setParticipanteNoEncontrado(true)
@@ -243,11 +248,10 @@ export default function ReservasPage() {
         const fd = new FormData()
         fd.append("file", pdfFile)
         const res = await fetch("/api/upload", { method: "POST", body: fd })
-        if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.error ?? "Error al subir el archivo")
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data?.url) {
+          throw new Error(data?.error ?? "Error al subir el archivo a Drive")
         }
-        const data = await res.json()
         cartaUrl = data.url
       }
 
@@ -290,7 +294,7 @@ export default function ReservasPage() {
       toast.success(esAdmin ? "Reserva creada y aprobada" : "Solicitud enviada correctamente")
     } catch (err) {
       console.error(err)
-      toast.error("Error al enviar la solicitud")
+      toast.error(err instanceof Error ? err.message : "Error al enviar la solicitud")
     } finally {
       setSubmitting(false)
     }
@@ -588,7 +592,7 @@ export default function ReservasPage() {
                   {esAdmin ? "Participantes *" : "Paso 3 — Participantes *"}
                 </CardTitle>
                 <CardDescription>
-                  Busca por cédula o código estudiantil completo en Gym Control. Mínimo un participante además del solicitante.
+                  Busca por cédula o código estudiantil completo en Asistencias. Mínimo un participante además del solicitante.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -657,7 +661,7 @@ export default function ReservasPage() {
                 <Card className={cn(!escenarioSel || !fecha || !horaInicio ? "opacity-50 pointer-events-none" : "border-primary/20 bg-primary/5")}>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base text-primary">Paso 4 — Carta firmada (Meléndez)</CardTitle>
-                    <CardDescription>Descarga, firma y sube la carta de préstamo.</CardDescription>
+                    <CardDescription>Descarga el formato CRD-IC-01, fírmalo y súbelo en PDF.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {escenarioSel && fecha && horaInicio && (
@@ -667,20 +671,29 @@ export default function ReservasPage() {
                         className="gap-2 w-full"
                         onClick={() => {
                           if (!usuario) return
-                          generarCartaPrestamo({
+                          const escenario = escenarioCrdDesdeTipo(escenarioSel.tipo, escenarioSel.nombre)
+                          generarFormatoCrd({
+                            fechaSolicitud: new Date(),
                             nombreCompleto: getSolicitanteDisplayName(usuario),
                             documento: usuario.numeroDocumento ?? usuario.codigoEstudiantil ?? "",
-                            programaAcademico: usuario.programaAcademico ?? usuario.facultad ?? "",
-                            escenario: escenarioSel.nombre,
-                            ubicacion: escenarioSel.ubicacion,
-                            fecha,
+                            telefono: usuario.telefono,
+                            correo: usuario.correo,
+                            programa: usuario.programaAcademico ?? usuario.facultad ?? "",
+                            asistentes: participantes.length + 1,
+                            tipoUsuario: tipoUsuarioDesdeEstamento(usuario.estamento),
+                            nombreEvento: `Préstamo de ${escenarioSel.nombre}`,
+                            fechaPrestamo: fecha,
                             horaInicio,
                             horaFin: calcularHoraFin(horaInicio),
+                            escenarioMarcado: escenario.marcado,
+                            otroEscenario: escenario.otro,
+                            requerimiento: "ninguno",
+                            estado: "pendiente",
                           })
                         }}
                       >
                         <Download className="h-4 w-4" />
-                        Descargar Carta Pre-llenada (PDF)
+                        Descargar formato CRD-IC-01
                       </Button>
                     )}
                   </CardContent>

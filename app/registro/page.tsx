@@ -1,13 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { IrAAsistencia } from "@/components/ir-a-asistencia"
 
-/** Registro eliminado — redirige al identificador gym. */
-export default function RegistroRedirectPage() {
-  const router = useRouter()
-  useEffect(() => {
-    router.replace("/login")
-  }, [router])
-  return null
+export default function RegistroPage() {
+  return <IrAAsistencia />
 }

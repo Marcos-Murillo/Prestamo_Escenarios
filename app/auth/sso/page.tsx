@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { Spinner } from "@/components/ui/spinner"
 
 function SSOHandler() {
@@ -38,7 +39,11 @@ function SSOHandler() {
         })
 
         const redirectParam = searchParams.get("redirect")
-        const defaultRedirect = data.rol === "superadmin" || data.rol === "admin" ? "/admin" : "/mis-reservas"
+        const isStaff = data.rol === "superadmin" || data.rol === "admin"
+        if (!isStaff) {
+          goToAsistencia()
+          return
+        }
 
         const allowed = ["/admin", "/admin/peticiones", "/admin/escenarios", "/admin/calendario", "/admin/estadisticas", "/reservas"]
         const target =
@@ -46,7 +51,7 @@ function SSOHandler() {
             ? redirectParam === "/superadmin"
               ? "/admin"
               : redirectParam
-            : defaultRedirect
+            : "/admin"
 
         router.replace(target)
       })

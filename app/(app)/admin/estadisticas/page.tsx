@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { obtenerTodasReservas } from "@/lib/reservas-service"
 import { Reserva } from "@/lib/types"
 import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
@@ -19,7 +20,7 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!usuario) { router.replace("/login"); return }
+      if (!usuario) { goToAsistencia(); return }
       if (usuario.rol === "solicitante") { router.replace("/"); return }
     }
   }, [authLoading, usuario, router])

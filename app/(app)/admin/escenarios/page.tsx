@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, matchesAdminSede } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { resolveSede, SEDE_LABELS, DEFAULT_SEDE, type Sede } from "@/lib/sede"
 import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
@@ -57,7 +58,7 @@ export default function EscenariosPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!usuario) { router.replace("/login"); return }
+      if (!usuario) { goToAsistencia(); return }
       if (!isStaff) { router.replace("/"); return }
     }
   }, [authLoading, usuario, isStaff, router])

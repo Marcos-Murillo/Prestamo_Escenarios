@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, matchesAdminSede } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { filterBySede } from "@/lib/sede"
 import { AdminSedeSelector, AdminSedeBadge } from "@/components/admin-sede-selector"
 import { db, isFirebaseConfigured } from "@/lib/firebase"
@@ -54,7 +55,7 @@ export default function PeticionesPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!usuario) { router.replace("/login"); return }
+      if (!usuario) { goToAsistencia(); return }
       if (!isStaff) { router.replace("/"); return }
     }
   }, [authLoading, usuario, isStaff, router])

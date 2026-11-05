@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { goToAsistencia } from "@/lib/asistencia-url"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -18,15 +18,13 @@ const ACCESOS = [
 ]
 
 export default function AdminPage() {
-  const router = useRouter()
   const { usuario, loading, isStaff } = useAuth()
 
   useEffect(() => {
     if (!loading) {
-      if (!usuario) router.replace("/login")
-      else if (!isStaff) router.replace("/mis-reservas")
+      if (!usuario || !isStaff) goToAsistencia()
     }
-  }, [loading, usuario, isStaff, router])
+  }, [loading, usuario, isStaff])
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Spinner size="lg" /></div>
   if (!usuario || !isStaff) return null
