@@ -80,6 +80,9 @@ export interface Reserva {
   updatedAt: Date
   comprobantePDF?: string
   cartaFirmada?: string
+  telefono?: string
+  programaAcademico?: string
+  estamento?: string
   participantes?: ParticipanteReserva[]
   totalParticipantes?: number
   solicitante?: string

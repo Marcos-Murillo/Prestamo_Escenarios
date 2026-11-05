@@ -25,6 +25,7 @@ import {
   Hash, FileText, Search, Download, PanelRightClose
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { generarFormatoCrd, escenarioCrdDesdeTipo, tipoUsuarioDesdeEstamento, type EstadoCrd } from "@/lib/formato-crd"
 
 const ESTADO_CONFIG = {
   pendiente:  { label: "Pendiente",  color: "border-warning/30 bg-warning/10 text-warning-foreground",  icon: Clock },
@@ -144,6 +145,38 @@ export default function PeticionesPage() {
     setPdfNombre(nombre)
   }
 
+  function descargarFormato(r: Reserva) {
+    const cancha = escenarios.find((item) => item.id === r.canchaId)
+    const escenario = escenarioCrdDesdeTipo(cancha?.tipo ?? "", r.canchaNombre)
+    const fechaPrestamo = new Date(`${r.fecha}T12:00:00`)
+    const estado: EstadoCrd =
+      r.estado === "aprobada" || r.estado === "completada"
+        ? "aprobada"
+        : r.estado === "rechazada" || r.estado === "cancelada"
+          ? "rechazada"
+          : "pendiente"
+    generarFormatoCrd({
+      fechaSolicitud: r.createdAt,
+      nombreCompleto: r.usuarioNombre,
+      documento: r.solicitanteNumeroDocumento || r.codigoEstudiantil || "",
+      telefono: r.telefono,
+      correo: r.usuarioEmail,
+      programa: r.programaAcademico,
+      asistentes: r.totalParticipantes || (r.participantes?.length ? r.participantes.length + 1 : undefined),
+      tipoUsuario: r.estamento ? tipoUsuarioDesdeEstamento(r.estamento) : undefined,
+      nombreEvento: `Préstamo de ${r.canchaNombre}`,
+      fechaPrestamo,
+      horaInicio: r.horaInicio,
+      horaFin: r.horaFin,
+      escenarioMarcado: escenario.marcado,
+      otroEscenario: escenario.otro,
+      requerimiento: "ninguno",
+      estado,
+      fechaDecision: estado === "pendiente" ? undefined : r.updatedAt,
+      observaciones: r.motivoRechazo,
+    })
+  }
+
   const reservasFiltradas = reservas.filter(r => {
     const matchSearch =
       r.usuarioNombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -231,9 +264,14 @@ export default function PeticionesPage() {
                           </div>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="h-3 w-3" />{r.usuarioNombre}</span>
-                            <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{r.solicitanteNumeroDocumento ?? "—"}</span>
+                            <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{r.solicitanteNumeroDocumento || r.codigoEstudiantil || "—"}</span>
                             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fecha}</span>
                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{r.horaInicio}–{r.horaFin}</span>
+                            {r.usuarioEmail && <span className="truncate">{r.usuarioEmail}</span>}
+                            {r.telefono && <span>{r.telefono}</span>}
+                            {r.programaAcademico && <span className="truncate">{r.programaAcademico}</span>}
+                            {r.estamento && <span>{r.estamento}</span>}
+                            {r.totalParticipantes ? <span>{r.totalParticipantes} personas</span> : null}
                             {r.unidadAsignada && (
                               <span className="font-medium text-primary">Unidad #{r.unidadAsignada}</span>
                             )}
@@ -245,7 +283,15 @@ export default function PeticionesPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Ver carta */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => descargarFormato(r)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Formato CRD
+                        </Button>
                         {cartaUrl && (
                           <Button
                             size="sm" variant="outline"

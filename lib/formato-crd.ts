@@ -80,10 +80,13 @@ function horaAmPm(hora: string) {
 function casilla(doc: jsPDF, x: number, y: number, marcada: boolean) {
   doc.setDrawColor(40)
   doc.setLineWidth(0.3)
-  doc.rect(x, y - 3.2, 3.6, 3.6)
+  doc.setFillColor(255, 255, 255)
+  doc.rect(x, y - 3.2, 3.6, 3.6, "S")
   if (marcada) {
     doc.setFont("helvetica", "bold")
     doc.setFontSize(9)
+    doc.setFillColor(0, 0, 0)
+    doc.setTextColor(0, 0, 0)
     doc.text("X", x + 0.7, y)
   }
 }
@@ -91,30 +94,37 @@ function casilla(doc: jsPDF, x: number, y: number, marcada: boolean) {
 function tituloSeccion(doc: jsPDF, texto: string, y: number) {
   doc.setFillColor(226, 232, 240)
   doc.rect(12, y, 186, 8, "F")
+  doc.setFillColor(15, 40, 70)
+  doc.setTextColor(15, 40, 70)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(15, 40, 70)
   doc.text(texto, 14, y + 5.4)
-  doc.setTextColor(0)
   return y + 13
 }
 
 function campo(doc: jsPDF, etiqueta: string, valor: string, x: number, y: number, ancho: number) {
+  doc.setFillColor(70, 80, 90)
+  doc.setTextColor(70, 80, 90)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(8)
+  doc.setFontSize(7)
   doc.text(etiqueta, x, y)
+  doc.setFillColor(0, 0, 0)
+  doc.setTextColor(0, 0, 0)
   doc.setFont("helvetica", "normal")
-  const lineas = doc.splitTextToSize(valor || " ", ancho)
-  doc.text(lineas.slice(0, 2), x, y + 4.5)
-  doc.setDrawColor(160)
-  doc.setLineWidth(0.2)
-  doc.line(x, y + 10, x + ancho, y + 10)
+  doc.setFontSize(10)
+  const texto = doc.splitTextToSize(valor.trim() || "—", ancho)[0] || "—"
+  doc.text(texto, x, y + 5.4)
+  doc.setDrawColor(170)
+  doc.setLineWidth(0.25)
+  doc.line(x, y + 7.2, x + ancho, y + 7.2)
 }
 
 function opcion(doc: jsPDF, texto: string, x: number, y: number, marcada: boolean) {
   casilla(doc, x, y, marcada)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
+  doc.setFillColor(0, 0, 0)
+  doc.setTextColor(0, 0, 0)
   doc.text(texto, x + 5, y)
 }
 
@@ -124,7 +134,8 @@ export function generarFormatoCrd(datos: DatosFormatoCrd) {
 
   doc.setFillColor(15, 61, 110)
   doc.rect(0, 0, 210, 28, "F")
-  doc.setTextColor(255)
+  doc.setFillColor(255, 255, 255)
+  doc.setTextColor(255, 255, 255)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
   doc.text("UNIVERSIDAD DEL VALLE", 14, 10)
@@ -137,6 +148,7 @@ export function generarFormatoCrd(datos: DatosFormatoCrd) {
 
   doc.setFillColor(255, 255, 255)
   doc.rect(148, 4, 54, 20, "F")
+  doc.setFillColor(15, 61, 110)
   doc.setTextColor(15, 61, 110)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7)
@@ -233,46 +245,12 @@ export function generarFormatoCrd(datos: DatosFormatoCrd) {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
   doc.text("Observaciones / restricciones:", 14, y)
+  doc.setFillColor(0, 0, 0)
+  doc.setTextColor(0, 0, 0)
   doc.setFont("helvetica", "normal")
-  const obs = doc.splitTextToSize(datos.observaciones || " ", 180)
+  const obs = doc.splitTextToSize(datos.observaciones?.trim() || "—", 180)
   doc.text(obs.slice(0, 4), 14, y + 5)
   doc.line(14, y + 22, 194, y + 22)
-
-  y = tituloSeccion(doc, "4. ENTREGA Y DEVOLUCIÓN DEL ESCENARIO (Control en campo)", y + 30)
-  doc.setFont("helvetica", "italic")
-  doc.setFontSize(8)
-  const nota = doc.splitTextToSize(
-    "Este bloque se diligencia en el sitio, al inicio y al final de la actividad, por el encargado de la cancha y el usuario solicitante.",
-    180,
-  )
-  doc.text(nota, 14, y)
-  y += 12
-  doc.setFont("helvetica", "bold")
-  doc.text("A. Entrega (Inicio del préstamo)", 14, y)
-  doc.text("B. Devolución (Cierre del préstamo)", 110, y)
-  y += 8
-  campo(doc, "Hora de entrega real:", "", 14, y, 84)
-  campo(doc, "Hora de devolución real:", "", 110, y, 84)
-  y += 16
-  doc.setFont("helvetica", "bold")
-  doc.text("Estado inicial:", 14, y)
-  doc.text("Estado final:", 110, y)
-  y += 6
-  opcion(doc, "Conforme", 14, y, false)
-  opcion(doc, "No conforme", 52, y, false)
-  opcion(doc, "Conforme", 110, y, false)
-  opcion(doc, "Requiere observación", 148, y, false)
-  y += 10
-  campo(doc, "Observaciones de entrega:", "", 14, y, 84)
-  campo(doc, "Observaciones de devolución:", "", 110, y, 84)
-  y += 28
-  doc.setDrawColor(40)
-  doc.line(14, y, 90, y)
-  doc.line(110, y, 194, y)
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(8)
-  doc.text("Firma de quien recibe (Solicitante)", 14, y + 5)
-  doc.text("Firma responsable escenarios (CRD)", 110, y + 5)
 
   const archivo = `CRD-IC-01_${datos.nombreCompleto.replace(/\s+/g, "_").slice(0, 40)}_${fechaCorta(datos.fechaPrestamo).replace(/\//g, "-")}.pdf`
   doc.save(archivo)
